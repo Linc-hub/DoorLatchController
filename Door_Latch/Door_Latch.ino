@@ -1,3 +1,4 @@
+#include <avdweb_Switch.h>
 #include <IRremote.h>
 #include <Servo.h>
 Servo myservo;
@@ -13,11 +14,14 @@ int IR_CLOSED_CODE = 18;
 
 int currentButtonState;
 int lastButtonState;
+int lastLatchPosition = OPEN_POSITION;
+
+Switch pushButton = Switch(BUTTON_PIN);
 
 IRrecv irrecv(IR_PIN);
 IRData results;
 
-void setup() 
+void setup()
 {
   myservo.attach(SERVO_PIN);
   pinMode(BUTTON_PIN, INPUT);
@@ -32,6 +36,7 @@ void openLatch()
   myservo.write(OPEN_POSITION);
   digitalWrite(LED_PIN, LOW);
   Serial.println("Open Latch");
+  delay(1000);
 }
 
 void closeLatch()
@@ -39,41 +44,53 @@ void closeLatch()
   myservo.write(CLOSED_POSITION);
   digitalWrite(LED_PIN, HIGH);
   Serial.println("Close Latch");
+  delay(1000);
 }
 
-void loop() 
+void loop()
 {
   boolean hasReceivedData = irrecv.decode();
   currentButtonState = digitalRead(BUTTON_PIN);
-  
-  if (currentButtonState != lastButtonState) 
+
+  pushButton.poll();
+
+  //  if (currentButtonState == HIGH)
+  //  {
+  //    Serial.println("Button Pressed!");
+
+  if (pushButton.pushed())
   {
-    if (currentButtonState == LOW) 
+    Serial.println("Button Pressed!");
+    int newLatchPosition;
+
+    if (lastLatchPosition == OPEN_POSITION)
     {
-        openLatch();
+      newLatchPosition = CLOSED_POSITION;
+      closeLatch();
     }
-    else if (currentButtonState == HIGH) 
+    else
     {
-        closeLatch();
+      newLatchPosition = OPEN_POSITION;
+      openLatch();
     }
 
-    lastButtonState = currentButtonState;
+    myservo.write(newLatchPosition);
+
+    lastLatchPosition = newLatchPosition;
   }
-  else if(hasReceivedData)
+
+  else if (hasReceivedData)
   {
     irrecv.resume();
     results = irrecv.decodedIRData;
 
-
-    Serial.println(results.command);
-
     if (results.command == IR_OPEN_CODE)
     {
-       openLatch();
+      openLatch();
     }
-    else if(results.command == IR_CLOSED_CODE)
+    else if (results.command == IR_CLOSED_CODE)
     {
-       closeLatch();
-    }    
+      closeLatch();
+    }
   }
 }
